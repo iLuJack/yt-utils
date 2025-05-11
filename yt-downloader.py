@@ -1,6 +1,7 @@
 from pytubefix import YouTube
 from pytubefix.cli import on_progress
 import os
+import subprocess
 
 def download_video(url, output_path, format="mp4"):
     try:
@@ -14,12 +15,20 @@ def download_video(url, output_path, format="mp4"):
         elif format == "mp3":
             stream = yt.streams.get_audio_only()
             downloaded_path = stream.download(output_path=f"{output_path}/mp3")
-            # Convert to mp3
+            # Convert to mp3 using ffmpeg
             base, ext = os.path.splitext(downloaded_path)
             mp3_path = base + ".mp3"
-            os.rename(downloaded_path, mp3_path)
-            print(f"Audio downloaded to: {mp3_path}")
-            downloaded_path = mp3_path
+            try:
+                # Use ffmpeg to convert the audio file to mp3
+                subprocess.run(['ffmpeg', '-i', downloaded_path, '-codec:a', 'libmp3lame', '-q:a', '2', mp3_path], check=True)
+                # Remove the original file after successful conversion
+                os.remove(downloaded_path)
+                print(f"Audio downloaded and converted to: {mp3_path}")
+                downloaded_path = mp3_path
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                print(f"Error converting to MP3: {e}")
+                print("Make sure ffmpeg is installed on your system")
+                return downloaded_path
         return downloaded_path
     except Exception as e:
         print(f"Error downloading: {e}")
